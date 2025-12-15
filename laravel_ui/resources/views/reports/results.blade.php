@@ -3,131 +3,177 @@
 @section('title', 'Report Results')
 
 @section('content')
-<div class="neo-card p-8 rounded-2xl">
-    <div class="sm:flex sm:items-center mb-6">
-        <div class="sm:flex-auto">
-            <h1 class="text-3xl font-semibold" style="color: var(--color-neo-text);">Report Results - {{ ucfirst(str_replace('_', ' ', $reportType)) }}</h1>
-            <p class="mt-2 text-sm" style="color: var(--color-neo-text-light);">Total Results: {{ $results->total() }}</p>
-        </div>
-        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <a href="{{ route('reports.index') }}" class="neo-button px-4 py-2 text-sm font-medium inline-flex items-center" style="color: var(--color-neo-text);">New Search</a>
-        </div>
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ ucfirst(str_replace('_', ' ', $reportType)) }} Report</h1>
+        <p class="mt-1 text-sm text-gray-500">Found {{ $results->total() }} {{ Str::plural('result', $results->total()) }}</p>
     </div>
-
-    <div class="mt-8 flow-root">
-        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                @if($reportType === 'renewal_job')
-                <table class="min-w-full divide-y" style="border-color: rgba(163, 163, 163, 0.2);">
-                    <thead>
-                        <tr>
-                            <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-0" style="color: var(--color-neo-text);">ID</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Service</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">MSISDN</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Status</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Queued At</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Processed At</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y" style="border-color: rgba(163, 163, 163, 0.1);">
-                        @forelse($results as $result)
-                        <tr>
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0" style="color: var(--color-neo-text);">{{ $result->id }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->service->shortcode->shortcode ?? '-' }} - {{ $result->service->keyword ?? '-' }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->msisdn }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ $result->status === 'done' ? 'bg-green-100 text-green-800' : ($result->status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                                    {{ $result->status }}
-                                </span>
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->queued_at }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->processed_at ?? '-' }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="py-4 text-center text-sm" style="color: var(--color-neo-text-light);">No results found</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                @elseif($reportType === 'subscription')
-                <table class="min-w-full divide-y" style="border-color: rgba(163, 163, 163, 0.2);">
-                    <thead>
-                        <tr>
-                            <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-0" style="color: var(--color-neo-text);">ID</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Service</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">MSISDN</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Status</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Subscribed At</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Last Updated</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y" style="border-color: rgba(163, 163, 163, 0.1);">
-                        @forelse($results as $result)
-                        <tr>
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0" style="color: var(--color-neo-text);">{{ $result->id }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->service->shortcode->shortcode ?? '-' }} - {{ $result->service->keyword ?? '-' }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->msisdn }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ $result->status === 'active' ? 'bg-green-100 text-green-800' : ($result->status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                                    {{ $result->status }}
-                                </span>
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->subscribed_at }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->updated_at ?? '-' }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="py-4 text-center text-sm" style="color: var(--color-neo-text-light);">No results found</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                @elseif($reportType === 'mt')
-                <table class="min-w-full divide-y" style="border-color: rgba(163, 163, 163, 0.2);">
-                    <thead>
-                        <tr>
-                            <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-0" style="color: var(--color-neo-text);">ID</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Service</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">MSISDN</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Type</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Message</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">Status</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">DN Status</th>
-                            <th class="px-3 py-3.5 text-left text-sm font-semibold" style="color: var(--color-neo-text);">MT Ref ID</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y" style="border-color: rgba(163, 163, 163, 0.1);">
-                        @forelse($results as $result)
-                        <tr>
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0" style="color: var(--color-neo-text);">{{ $result->id }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->service->shortcode ?? '-' }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->msisdn }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->message_type }}</td>
-                            <td class="px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ Str::limit($result->message_content ?? '-', 50) }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ $result->status === 'success' ? 'bg-green-100 text-green-800' : ($result->status === 'fail' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                                    {{ $result->status }}
-                                </span>
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->dn_status }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm" style="color: var(--color-neo-text-light);">{{ $result->mt_ref_id }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="py-4 text-center text-sm" style="color: var(--color-neo-text-light);">No results found</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-4">
-        {{ $results->links() }}
+    <div class="mt-4 sm:mt-0 flex gap-3">
+        <a href="{{ route('reports.index') }}" class="neo-button inline-flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            New Search
+        </a>
     </div>
 </div>
-@endsection
 
+<!-- Results Card -->
+<div class="neo-card overflow-hidden p-0">
+    <div class="overflow-x-auto">
+        @if($reportType === 'renewal_job')
+        <table class="neo-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Service</th>
+                    <th>MSISDN</th>
+                    <th>Status</th>
+                    <th>Queued At</th>
+                    <th>Processed At</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($results as $result)
+                <tr>
+                    <td class="font-medium text-gray-900">{{ $result->id }}</td>
+                    <td>{{ $result->service->shortcode->shortcode ?? '-' }} - {{ $result->service->keyword ?? '-' }}</td>
+                    <td>{{ $result->msisdn }}</td>
+                    <td>
+                        @php
+                            $statusClass = match($result->status) {
+                                'done' => 'badge-success',
+                                'failed' => 'badge-danger',
+                                'processing' => 'badge-info',
+                                default => 'badge-warning'
+                            };
+                        @endphp
+                        <span class="badge {{ $statusClass }}">{{ ucfirst($result->status) }}</span>
+                    </td>
+                    <td>{{ $result->queued_at?->format('M d, Y H:i') ?? '-' }}</td>
+                    <td>{{ $result->processed_at?->format('M d, Y H:i') ?? '-' }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6" class="text-center py-8 text-gray-500">
+                        <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        No renewal jobs found matching your criteria
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        @elseif($reportType === 'subscription')
+        <table class="neo-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Service</th>
+                    <th>MSISDN</th>
+                    <th>Status</th>
+                    <th>Subscribed At</th>
+                    <th>Next Renewal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($results as $result)
+                <tr>
+                    <td class="font-medium text-gray-900">{{ $result->id }}</td>
+                    <td>{{ $result->service->shortcode->shortcode ?? '-' }} - {{ $result->service->keyword ?? '-' }}</td>
+                    <td>{{ $result->msisdn }}</td>
+                    <td>
+                        @php
+                            $statusClass = match($result->status) {
+                                'active' => 'badge-success',
+                                'cancelled' => 'badge-danger',
+                                'suspended' => 'badge-warning',
+                                default => 'badge-secondary'
+                            };
+                        @endphp
+                        <span class="badge {{ $statusClass }}">{{ ucfirst($result->status) }}</span>
+                    </td>
+                    <td>{{ $result->subscribed_at?->format('M d, Y H:i') ?? '-' }}</td>
+                    <td>{{ $result->next_renewal_at?->format('M d, Y H:i') ?? '-' }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6" class="text-center py-8 text-gray-500">
+                        <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        No subscriptions found matching your criteria
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        @elseif($reportType === 'mt')
+        <table class="neo-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>MT Ref ID</th>
+                    <th>MSISDN</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>DN Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($results as $result)
+                <tr>
+                    <td class="font-medium text-gray-900">{{ $result->id }}</td>
+                    <td class="font-mono text-xs">{{ $result->mt_ref_id }}</td>
+                    <td>{{ $result->msisdn }}</td>
+                    <td><span class="badge badge-info">{{ $result->message_type }}</span></td>
+                    <td>
+                        @php
+                            $statusClass = match($result->status) {
+                                'success' => 'badge-success',
+                                'fail' => 'badge-danger',
+                                default => 'badge-warning'
+                            };
+                        @endphp
+                        <span class="badge {{ $statusClass }}">{{ ucfirst($result->status) }}</span>
+                    </td>
+                    <td>
+                        @php
+                            $dnClass = match($result->dn_status) {
+                                'delivered' => 'badge-success',
+                                'failed' => 'badge-danger',
+                                default => 'badge-secondary'
+                            };
+                        @endphp
+                        <span class="badge {{ $dnClass }}">{{ ucfirst($result->dn_status) }}</span>
+                    </td>
+                    <td>{{ $result->created_at?->format('M d, Y H:i') }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="7" class="text-center py-8 text-gray-500">
+                        <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        No MT messages found matching your criteria
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+        @endif
+    </div>
+    
+    <!-- Pagination -->
+    @if($results->hasPages())
+    <div class="px-6 py-4 border-t border-gray-100">
+        {{ $results->withQueryString()->links() }}
+    </div>
+    @endif
+</div>
+@endsection

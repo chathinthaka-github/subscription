@@ -26,7 +26,7 @@ class StoreRenewalPlanRequest extends FormRequest
             'shortcode_id' => ['required', 'exists:shortcodes,id'],
             'keyword' => ['required', 'string', 'max:120'],
             'name' => ['required', 'string', 'max:100'],
-            'price_code' => ['required', 'string', 'max:50'],
+            'price_code' => ['nullable', 'string', 'max:50'],
             'plan_type' => ['required', 'in:daily,weekly,monthly'],
             'skip_subscription_day' => ['boolean'],
             'is_fixed_time' => ['boolean'],

@@ -93,10 +93,14 @@ class RenewalPlanController extends Controller
         
         $data['schedule_rules'] = $this->buildScheduleRules($data);
 
-        RenewalPlan::create($data);
+        // Use updateOrCreate since each service can only have one renewal plan
+        RenewalPlan::updateOrCreate(
+            ['service_id' => $data['service_id']],
+            $data
+        );
 
         return redirect()->route('renewal-plans.index')
-            ->with('success', 'Renewal plan created successfully.');
+            ->with('success', 'Renewal plan saved successfully.');
     }
 
     /**

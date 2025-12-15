@@ -3,65 +3,90 @@
 @section('title', 'Create Service Message')
 
 @section('content')
-<div class="px-4 sm:px-6 lg:px-8" style="background: #fff;">
-    <h1 class="text-2xl font-semibold" style="color: #000;">Create Service Message</h1>
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Create Service Message</h1>
+    <p class="mt-1 text-sm text-gray-500">Configure a new message for a service</p>
+</div>
 
-    <form method="POST" action="{{ route('service-messages.store') }}" class="mt-8 space-y-6 max-w-2xl">
+<div class="neo-card">
+    <form method="POST" action="{{ route('service-messages.store') }}">
         @csrf
 
-        <div>
-            <label for="shortcode_id" class="block text-sm font-medium" style="color: #000;">Shortcode</label>
-            <select name="shortcode_id" id="shortcode_id" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="">Select Shortcode</option>
-                @foreach($shortcodes as $shortcode)
-                    <option value="{{ $shortcode->id }}" {{ old('shortcode_id') == $shortcode->id ? 'selected' : '' }}>{{ $shortcode->shortcode }}</option>
-                @endforeach
-            </select>
-            @error('shortcode_id')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Shortcode -->
+            <div>
+                <label for="shortcode_id" class="block text-sm font-medium text-gray-700 mb-2">Shortcode</label>
+                <select name="shortcode_id" id="shortcode_id" required class="neo-input">
+                    <option value="">Select Shortcode</option>
+                    @foreach($shortcodes as $shortcode)
+                        <option value="{{ $shortcode->id }}" {{ old('shortcode_id') == $shortcode->id ? 'selected' : '' }}>{{ $shortcode->shortcode }}</option>
+                    @endforeach
+                </select>
+                @error('shortcode_id')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- Keyword -->
+            <div>
+                <label for="keyword" class="block text-sm font-medium text-gray-700 mb-2">Keyword</label>
+                <select name="keyword" id="keyword" required disabled class="neo-input">
+                    <option value="">Select Shortcode First</option>
+                </select>
+                @error('keyword')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
-        <div>
-            <label for="keyword" class="block text-sm font-medium" style="color: #000;">Keyword</label>
-            <select name="keyword" id="keyword" required disabled class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="">Select Shortcode First</option>
-            </select>
-            @error('keyword')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Message Type -->
+            <div>
+                <label for="message_type" class="block text-sm font-medium text-gray-700 mb-2">Message Type</label>
+                <select name="message_type" id="message_type" required class="neo-input">
+                    <option value="FPMT" {{ old('message_type') === 'FPMT' ? 'selected' : '' }}>FPMT</option>
+                    <option value="RENEWAL" {{ old('message_type') === 'RENEWAL' ? 'selected' : '' }}>RENEWAL</option>
+                </select>
+                @error('message_type')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status" id="status" required class="neo-input">
+                    <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                </select>
+                @error('status')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
-        <div>
-            <label for="message_type" class="block text-sm font-medium" style="color: #000;">Message Type</label>
-            <select name="message_type" id="message_type" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="FPMT" {{ old('message_type') === 'FPMT' ? 'selected' : '' }}>FPMT</option>
-                <option value="RENEWAL" {{ old('message_type') === 'RENEWAL' ? 'selected' : '' }}>RENEWAL</option>
-            </select>
-            @error('message_type')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div>
-            <label for="status" class="block text-sm font-medium" style="color: #000;">Status</label>
-            <select name="status" id="status" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
-                <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
-            </select>
-        </div>
-
-        <div>
-            <label for="message" class="block text-sm font-medium" style="color: #000;">Message <span id="char-count" style="color: #666;">(0/260)</span></label>
-            <textarea name="message" id="message" required maxlength="260" rows="4" class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">{{ old('message') }}</textarea>
+        <!-- Message -->
+        <div class="mb-6">
+            <label for="message" class="block text-sm font-medium text-gray-700 mb-2">
+                Message Content
+                <span id="char-count" class="text-gray-400 font-normal">(0/260)</span>
+            </label>
+            <textarea name="message" id="message" required maxlength="260" rows="4" class="neo-input" placeholder="Enter the message content...">{{ old('message') }}</textarea>
             @error('message')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
+                <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
             @enderror
         </div>
 
-        <div class="flex gap-4">
-            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">Create</button>
-            <a href="{{ route('service-messages.index') }}" class="inline-flex items-center px-4 py-2 border border-black text-sm font-medium rounded-md" style="color: #000; background: #fff;">Cancel</a>
+        <!-- Actions -->
+        <div class="flex items-center gap-4 pt-6 border-t border-gray-100">
+            <button type="submit" class="neo-button-primary">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Message
+            </button>
+            <a href="{{ route('service-messages.index') }}" class="neo-button">Cancel</a>
         </div>
     </form>
 </div>
@@ -104,4 +129,3 @@
     });
 </script>
 @endsection
-

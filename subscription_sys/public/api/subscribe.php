@@ -81,24 +81,10 @@ try {
         throw new Exception('Active subscription already exists for this MSISDN and service');
     }
 
-    // Get renewal_plan_id if provided
-    $renewalPlanId = !empty($input['renewal_plan_id']) ? (int)$input['renewal_plan_id'] : null;
-
-    if ($renewalPlanId) {
-        $renewalPlan = $db->queryOne(
-            "SELECT id FROM renewal_plans WHERE id = ? LIMIT 1",
-            [$renewalPlanId]
-        );
-        if (!$renewalPlan) {
-            throw new Exception('Invalid renewal_plan_id');
-        }
-    }
-
-    // Prepare subscription data
+    // Prepare subscription data (renewal_plan_id derived via service)
     $subscriptionData = [
         'msisdn' => $msisdn,
         'service_id' => $serviceId,
-        'renewal_plan_id' => $renewalPlanId,
         'subscribed_at' => date('Y-m-d H:i:s'),
     ];
 

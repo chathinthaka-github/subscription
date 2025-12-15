@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+// Set timezone to Colombo, Sri Lanka
+date_default_timezone_set('Asia/Colombo');
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -51,27 +54,24 @@ function processSubscription($data, $msg)
             throw new Exception('Service not found or inactive: ' . $data['service_id']);
         }
 
-        // Calculate next_renewal_at if renewal_plan_id is provided
+        // Calculate next_renewal_at from service's renewal plan (one plan per service)
         $nextRenewalAt = null;
-        if (!empty($data['renewal_plan_id'])) {
-            $renewalPlan = $db->queryOne(
-                "SELECT plan_type, schedule_rules, is_fixed_time, fixed_time FROM renewal_plans WHERE id = ? LIMIT 1",
-                [$data['renewal_plan_id']]
-            );
+        $renewalPlan = $db->queryOne(
+            "SELECT plan_type, schedule_rules, is_fixed_time, fixed_time FROM renewal_plans WHERE service_id = ? LIMIT 1",
+            [$data['service_id']]
+        );
 
-            if ($renewalPlan) {
-                $nextRenewalAt = calculateNextRenewal($renewalPlan['plan_type'], $renewalPlan['schedule_rules'], $renewalPlan['is_fixed_time'], $renewalPlan['fixed_time']);
-            }
+        if ($renewalPlan) {
+            $nextRenewalAt = calculateNextRenewal($renewalPlan['plan_type'], $renewalPlan['schedule_rules'], $renewalPlan['is_fixed_time'], $renewalPlan['fixed_time']);
         }
 
-        // Insert subscription
+        // Insert subscription (without renewal_plan_id - derived via service)
         $result = $db->execute(
-            "INSERT INTO subscriptions (msisdn, service_id, renewal_plan_id, status, subscribed_at, next_renewal_at, created_at, updated_at) 
-             VALUES (?, ?, ?, 'active', ?, ?, NOW(), NOW())",
+            "INSERT INTO subscriptions (msisdn, service_id, status, subscribed_at, next_renewal_at, created_at, updated_at) 
+             VALUES (?, ?, 'active', ?, ?, NOW(), NOW())",
             [
                 $data['msisdn'],
                 $data['service_id'],
-                $data['renewal_plan_id'] ?? null,
                 $data['subscribed_at'] ?? date('Y-m-d H:i:s'),
                 $nextRenewalAt
             ]

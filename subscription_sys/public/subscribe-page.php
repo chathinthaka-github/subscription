@@ -153,11 +153,6 @@
                 <input type="text" id="keyword" name="keyword" placeholder="e.g., SUB">
             </div>
             
-            <div class="form-group">
-                <label for="renewal_plan_id">Renewal Plan ID (Optional)</label>
-                <input type="text" id="renewal_plan_id" name="renewal_plan_id" placeholder="e.g., 1">
-            </div>
-            
             <button type="submit" id="submitBtn">Subscribe</button>
         </form>
     </div>
@@ -193,9 +188,6 @@
                 data.shortcode = formData.get('shortcode');
                 data.keyword = formData.get('keyword');
             }
-
-            const renewalPlanId = formData.get('renewal_plan_id');
-            if (renewalPlanId) data.renewal_plan_id = parseInt(renewalPlanId);
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Subscribing...';

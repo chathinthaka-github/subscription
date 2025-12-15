@@ -15,7 +15,6 @@ class ServiceMessage extends Model
         'message_type',
         'status',
         'message',
-        'price_code',
     ];
 
     public function service(): BelongsTo

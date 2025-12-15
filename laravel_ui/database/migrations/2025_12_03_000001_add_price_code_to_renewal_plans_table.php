@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('renewal_plans', function (Blueprint $table) {
-            $table->string('price_code', 50)->after('name');
-        });
+        if (!Schema::hasColumn('renewal_plans', 'price_code')) {
+            Schema::table('renewal_plans', function (Blueprint $table) {
+                $table->string('price_code', 50)->nullable()->after('name');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('renewal_plans', function (Blueprint $table) {
-            $table->dropColumn('price_code');
-        });
+        if (Schema::hasColumn('renewal_plans', 'price_code')) {
+            Schema::table('renewal_plans', function (Blueprint $table) {
+                $table->dropColumn('price_code');
+            });
+        }
     }
 };

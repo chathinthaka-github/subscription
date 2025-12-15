@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+// Set timezone to Colombo, Sri Lanka
+date_default_timezone_set('Asia/Colombo');
+
 require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Database.php';
 require_once __DIR__ . '/../src/RabbitMQ.php';
@@ -24,12 +27,13 @@ function processRenewals()
         $now = date('Y-m-d H:i:s');
 
         // Find subscriptions that are due for renewal
+        // Join via service to get renewal plan (one plan per service)
         $subscriptions = $db->query(
-            "SELECT s.*, rp.plan_type, rp.schedule_rules, rp.is_fixed_time, rp.fixed_time 
+            "SELECT s.*, rp.id as renewal_plan_id, rp.plan_type, rp.schedule_rules, rp.is_fixed_time, rp.fixed_time 
              FROM subscriptions s
-             INNER JOIN renewal_plans rp ON s.renewal_plan_id = rp.id
+             INNER JOIN services srv ON s.service_id = srv.id
+             INNER JOIN renewal_plans rp ON srv.id = rp.service_id
              WHERE s.status = 'active' 
-             AND s.renewal_plan_id IS NOT NULL
              AND s.next_renewal_at IS NOT NULL
              AND s.next_renewal_at <= ?
              ORDER BY s.next_renewal_at ASC",
@@ -49,7 +53,7 @@ function processRenewals()
 
                 // Get service message for renewal
                 $serviceMessage = $db->queryOne(
-                    "SELECT sm.* FROM service_messages sm
+                    "SELECT sm.message FROM service_messages sm
                      WHERE sm.service_id = ? AND sm.message_type = 'RENEWAL' AND sm.status = 'active'
                      LIMIT 1",
                     [$subscription['service_id']]
@@ -60,6 +64,14 @@ function processRenewals()
                     $db->rollback();
                     continue;
                 }
+
+                // Get price_code from renewal_plans
+                $renewalPlan = $db->queryOne(
+                    "SELECT rp.price_code FROM renewal_plans rp
+                     WHERE rp.service_id = ?
+                     LIMIT 1",
+                    [$subscription['service_id']]
+                );
 
                 // Create renewal_job
                 $jobResult = $db->execute(
@@ -84,6 +96,7 @@ function processRenewals()
                     'msisdn' => $subscription['msisdn'],
                     'message_type' => 'RENEWAL',
                     'message' => $serviceMessage['message'],
+                    'price_code' => $renewalPlan['price_code'] ?? null,
                     'mt_ref_id' => $mtRefId,
                 ];
 

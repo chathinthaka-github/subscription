@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+// Set timezone to Colombo, Sri Lanka
+date_default_timezone_set('Asia/Colombo');
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 

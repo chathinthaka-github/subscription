@@ -14,7 +14,6 @@ class Subscription extends Model
     protected $fillable = [
         'msisdn',
         'service_id',
-        'renewal_plan_id',
         'status',
         'subscribed_at',
         'last_renewal_at',
@@ -35,9 +34,13 @@ class Subscription extends Model
         return $this->belongsTo(Service::class);
     }
 
-    public function renewalPlan(): BelongsTo
+    /**
+     * Get the renewal plan via service relationship.
+     * Business rule: One renewal plan per service.
+     */
+    public function renewalPlan(): ?RenewalPlan
     {
-        return $this->belongsTo(RenewalPlan::class);
+        return $this->service?->renewalPlans()->first();
     }
 
     public function renewalJobs(): HasMany

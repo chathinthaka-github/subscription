@@ -55,7 +55,7 @@ class ReportController extends Controller
      */
     private function searchRenewalJobs(Request $request)
     {
-        $query = RenewalJob::with(['service', 'renewalPlan', 'subscription']);
+        $query = RenewalJob::with(['service.shortcode', 'subscription']);
 
         if ($request->filled('date_from')) {
             $query->where('created_at', '>=', $request->date_from);
@@ -85,7 +85,8 @@ class ReportController extends Controller
      */
     private function searchSubscriptions(Request $request)
     {
-        $query = Subscription::with(['service', 'renewalPlan']);
+        // Note: renewalPlan is now derived via service, not eager loaded
+        $query = Subscription::with(['service.shortcode', 'service.renewalPlans']);
 
         if ($request->filled('date_from')) {
             $query->where('subscribed_at', '>=', $request->date_from);
