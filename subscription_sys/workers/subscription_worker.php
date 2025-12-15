@@ -11,6 +11,7 @@ require_once __DIR__ . '/../src/Config.php';
 require_once __DIR__ . '/../src/Database.php';
 require_once __DIR__ . '/../src/RabbitMQ.php';
 require_once __DIR__ . '/../src/Logger.php';
+require_once __DIR__ . '/../src/helpers.php';
 
 // Load configuration
 Config::load();
@@ -62,7 +63,17 @@ function processSubscription($data, $msg)
         );
 
         if ($renewalPlan) {
+            // Debug: Log schedule_rules to trace skip_subscription_day
+            Logger::info('Renewal plan found', [
+                'plan_type' => $renewalPlan['plan_type'],
+                'schedule_rules' => $renewalPlan['schedule_rules'],
+                'is_fixed_time' => $renewalPlan['is_fixed_time'],
+                'fixed_time' => $renewalPlan['fixed_time']
+            ]);
+            
             $nextRenewalAt = calculateNextRenewal($renewalPlan['plan_type'], $renewalPlan['schedule_rules'], $renewalPlan['is_fixed_time'], $renewalPlan['fixed_time']);
+            
+            Logger::info('Calculated next renewal', ['next_renewal_at' => $nextRenewalAt]);
         }
 
         // Insert subscription (without renewal_plan_id - derived via service)
@@ -119,8 +130,6 @@ function processSubscription($data, $msg)
         return false;
     }
 }
-
-require_once __DIR__ . '/../src/helpers.php';
 
 // Start consuming
 try {
