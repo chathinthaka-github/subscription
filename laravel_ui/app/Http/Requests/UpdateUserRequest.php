@@ -33,9 +33,9 @@ class UpdateUserRequest extends FormRequest
             'roles.*' => ['exists:roles,id'],
         ];
 
-        // Password validation only if password is provided
+        // Password validation only if password is provided (no confirmation required)
         if ($this->filled('password')) {
-            $rules['password'] = ['required', 'string', 'min:8', 'confirmed'];
+            $rules['password'] = ['required', 'string', 'min:8'];
         }
 
         return $rules;

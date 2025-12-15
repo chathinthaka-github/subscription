@@ -1,369 +1,235 @@
-<?php
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use App\Config;
-use App\Database;
-
-Config::load();
-
-$message = '';
-$messageType = '';
-$submitted = false;
-$shortcodes = [];
-
-// Fetch shortcodes for the dropdown
-try {
-    $db = Database::getConnection();
-    $stmt = $db->query("
-        SELECT
-            id,
-            shortcode,
-            description
-        FROM shortcodes
-        WHERE status = 'active'
-        ORDER BY shortcode
-    ");
-    $shortcodes = $stmt->fetchAll();
-} catch (\Exception $e) {
-    $message = 'Error loading shortcodes: ' . $e->getMessage();
-    $messageType = 'error';
-}
-
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $msisdn = $_POST['msisdn'] ?? '';
-    $shortcode = $_POST['shortcode'] ?? '';
-    $keyword = $_POST['keyword'] ?? '';
-
-    if (empty($msisdn) || empty($shortcode) || empty($keyword)) {
-        $message = 'Please fill in all required fields';
-        $messageType = 'error';
-    } else {
-        // Call the subscription API using shortcode and keyword
-        $apiUrl = 'http://localhost/subscription_manager/subscription_sys/public/api/subscribe.php';
-
-        $data = [
-            'msisdn' => $msisdn,
-            'shortcode' => $shortcode,
-            'keyword' => $keyword
-        ];
-
-        $ch = curl_init($apiUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode === 200) {
-            $result = json_decode($response, true);
-            $message = $result['message'] ?? 'Subscription request submitted successfully!';
-            $messageType = 'success';
-            $submitted = true;
-        } else {
-            $result = json_decode($response, true);
-            $message = $result['error'] ?? 'Failed to submit subscription request';
-            $messageType = 'error';
-        }
-    }
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subscribe - Subscription Manager</title>
+    <title>Subscribe</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
     <style>
+        :root {
+            --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            --color-neo-base: #E0E0E0;
+            --color-neo-light: #F0F0F0;
+            --color-neo-text: #2D2D2D;
+            --color-neo-text-light: #5A5A5A;
+            --color-neo-accent: #4F46E5;
+            --color-neo-accent-hover: #4338CA;
+            --color-neo-success: #059669;
+            --color-neo-error: #DC2626;
+        }
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: var(--font-sans);
+            background: var(--color-neo-base);
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
             padding: 20px;
         }
-
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: var(--color-neo-light);
+            padding: 40px;
+            border-radius: 1.25rem;
+            box-shadow: 6px 6px 12px rgba(163, 163, 163, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.9);
+            border: 2px solid #C0C0C0;
             max-width: 500px;
             width: 100%;
-            padding: 40px;
         }
-
         h1 {
-            color: #333;
             margin-bottom: 30px;
+            color: var(--color-neo-text);
             text-align: center;
-            font-size: 28px;
+            font-size: 2rem;
+            font-weight: 600;
         }
-
         .form-group {
             margin-bottom: 20px;
         }
-
         label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
-            font-weight: 600;
-            font-size: 14px;
+            color: var(--color-neo-text-light);
+            font-weight: 500;
         }
-
-        input[type="text"],
-        input[type="tel"],
-        select {
+        input, select {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 0.75rem;
             font-size: 16px;
-            transition: all 0.3s;
+            background: var(--color-neo-light);
+            color: var(--color-neo-text);
+            box-shadow: inset 4px 4px 8px rgba(163, 163, 163, 0.2), inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+            border: 2px solid #A0A0A0;
+            transition: all 0.2s ease;
         }
-
-        input[type="text"]:focus,
-        input[type="tel"]:focus,
-        select:focus {
+        input:focus, select:focus {
+            background: var(--color-neo-base);
+            border-color: #4A4A4A;
+            box-shadow: inset 2px 2px 4px rgba(163, 163, 163, 0.2), inset -2px -2px 4px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(79, 70, 229, 0.15);
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-
-        select:disabled {
-            background-color: #f5f5f5;
-            cursor: not-allowed;
-        }
-
         button {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px;
+            background: var(--color-neo-accent);
             color: white;
-            border: none;
-            border-radius: 10px;
+            border: 2px solid #312E81;
+            border-radius: 0.75rem;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+            box-shadow: 4px 4px 12px rgba(79, 70, 229, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
         }
-
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        button:hover {
+            background: var(--color-neo-accent-hover);
         }
-
-        button:active {
-            transform: translateY(0);
-        }
-
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
-            transform: none;
+            box-shadow: none;
         }
-
         .message {
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 5px;
             margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
-        }
-
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-
-        .hidden {
+            text-align: center;
             display: none;
         }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
-
-        .back-link:hover {
-            text-decoration: underline;
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
-
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .nav-links a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-            margin: 0 10px;
-        }
-
-        .nav-links a:hover {
-            text-decoration: underline;
-        }
-
-        .info-text {
-            font-size: 12px;
-            color: #888;
-            margin-top: 5px;
-        }
-
-        .loading {
-            color: #667eea;
-            font-style: italic;
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-links">
-            <a href="index.php">Home</a>
-            <a href="subscribe-page.php">Subscribe</a>
-            <a href="emulator.php">Emulator</a>
-        </div>
-
-        <h1>📱 Subscribe to Service</h1>
-
-        <?php if ($message): ?>
-            <div class="message <?php echo $messageType; ?>">
-                <?php echo htmlspecialchars($message); ?>
-            </div>
-        <?php endif; ?>
-
-        <form method="POST" action="" id="subscribeForm" <?php echo $submitted ? 'class="hidden"' : ''; ?>>
+        <h1>Subscribe</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <form id="subscribeForm">
             <div class="form-group">
-                <label for="msisdn">Mobile Number (MSISDN) *</label>
-                <input
-                    type="tel"
-                    id="msisdn"
-                    name="msisdn"
-                    placeholder="+1234567890"
-                    required
-                    pattern="^\+?[0-9]{10,15}$"
-                    value="<?php echo htmlspecialchars($_POST['msisdn'] ?? ''); ?>"
-                >
-                <div class="info-text">Enter with country code (e.g., +1234567890)</div>
+                <label for="msisdn">Phone Number (MSISDN)</label>
+                <input type="tel" id="msisdn" name="msisdn" placeholder="+1234567890" required>
             </div>
-
+            
             <div class="form-group">
-                <label for="shortcode">Shortcode *</label>
-                <select id="shortcode" name="shortcode" required onchange="loadKeywords()">
-                    <option value="">Select a shortcode</option>
-                    <?php foreach ($shortcodes as $sc): ?>
-                        <option
-                            value="<?php echo htmlspecialchars($sc['shortcode']); ?>"
-                            data-id="<?php echo $sc['id']; ?>"
-                            <?php echo (isset($_POST['shortcode']) && $_POST['shortcode'] == $sc['shortcode']) ? 'selected' : ''; ?>
-                        >
-                            <?php echo htmlspecialchars($sc['shortcode']); ?>
-                            <?php if ($sc['description']): ?>
-                                - <?php echo htmlspecialchars($sc['description']); ?>
-                            <?php endif; ?>
-                        </option>
-                    <?php endforeach; ?>
+                <label for="service_type">Service Selection Method</label>
+                <select id="service_type" name="service_type" required>
+                    <option value="service_id">By Service ID</option>
+                    <option value="shortcode">By Shortcode & Keyword</option>
                 </select>
             </div>
-
-            <div class="form-group">
-                <label for="keyword">Keyword *</label>
-                <select id="keyword" name="keyword" required disabled>
-                    <option value="">Select a shortcode first</option>
-                </select>
-                <div class="info-text" id="keywordInfo"></div>
+            
+            <div class="form-group" id="service_id_group">
+                <label for="service_id">Service ID</label>
+                <input type="text" id="service_id" name="service_id" placeholder="e.g., 1">
             </div>
-
-            <button type="submit" id="submitBtn">Subscribe Now</button>
+            
+            <div class="form-group hidden" id="shortcode_group">
+                <label for="shortcode">Shortcode</label>
+                <input type="text" id="shortcode" name="shortcode" placeholder="e.g., 1234">
+            </div>
+            
+            <div class="form-group hidden" id="keyword_group">
+                <label for="keyword">Keyword</label>
+                <input type="text" id="keyword" name="keyword" placeholder="e.g., SUB">
+            </div>
+            
+            <div class="form-group">
+                <label for="renewal_plan_id">Renewal Plan ID (Optional)</label>
+                <input type="text" id="renewal_plan_id" name="renewal_plan_id" placeholder="e.g., 1">
+            </div>
+            
+            <button type="submit" id="submitBtn">Subscribe</button>
         </form>
-
-        <?php if ($submitted): ?>
-            <a href="subscribe-page.php" class="back-link">← Subscribe Another Number</a>
-        <?php endif; ?>
     </div>
 
     <script>
-        function loadKeywords() {
-            const shortcodeSelect = document.getElementById('shortcode');
-            const keywordSelect = document.getElementById('keyword');
-            const keywordInfo = document.getElementById('keywordInfo');
-            const submitBtn = document.getElementById('submitBtn');
-            const selectedOption = shortcodeSelect.options[shortcodeSelect.selectedIndex];
+        const form = document.getElementById('subscribeForm');
+        const serviceType = document.getElementById('service_type');
+        const serviceIdGroup = document.getElementById('service_id_group');
+        const shortcodeGroup = document.getElementById('shortcode_group');
+        const keywordGroup = document.getElementById('keyword_group');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
 
-            // Reset keyword dropdown
-            keywordSelect.innerHTML = '<option value="">Loading...</option>';
-            keywordSelect.disabled = true;
-            keywordInfo.innerHTML = '';
-            submitBtn.disabled = true;
+        serviceType.addEventListener('change', function() {
+            const isServiceId = this.value === 'service_id';
+            serviceIdGroup.classList.toggle('hidden', !isServiceId);
+            shortcodeGroup.classList.toggle('hidden', isServiceId);
+            keywordGroup.classList.toggle('hidden', isServiceId);
+        });
 
-            if (!selectedOption.value) {
-                keywordSelect.innerHTML = '<option value="">Select a shortcode first</option>';
-                submitBtn.disabled = false;
-                return;
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const data = {
+                msisdn: formData.get('msisdn')
+            };
+
+            if (serviceType.value === 'service_id') {
+                const serviceId = formData.get('service_id');
+                if (serviceId) data.service_id = parseInt(serviceId);
+            } else {
+                data.shortcode = formData.get('shortcode');
+                data.keyword = formData.get('keyword');
             }
 
-            const shortcodeId = selectedOption.dataset.id;
+            const renewalPlanId = formData.get('renewal_plan_id');
+            if (renewalPlanId) data.renewal_plan_id = parseInt(renewalPlanId);
 
-            // Fetch keywords via AJAX
-            fetch('api/get-keywords.php?shortcode_id=' + shortcodeId)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.keywords.length > 0) {
-                        keywordSelect.innerHTML = '<option value="">Select a keyword</option>';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subscribing...';
 
-                        data.keywords.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.keyword;
-                            option.textContent = item.keyword + ' (' + item.plan_count + ' plan' + (item.plan_count > 1 ? 's' : '') + ')';
-                            option.dataset.serviceId = item.service_id;
-                            keywordSelect.appendChild(option);
-                        });
-
-                        keywordSelect.disabled = false;
-                        keywordInfo.innerHTML = '<span class="loading">' + data.keywords.length + ' keyword(s) available</span>';
-                    } else {
-                        keywordSelect.innerHTML = '<option value="">No keywords available</option>';
-                        keywordInfo.innerHTML = '<span style="color: #dc2626;">No active services found for this shortcode</span>';
-                    }
-                    submitBtn.disabled = false;
-                })
-                .catch(error => {
-                    console.error('Error loading keywords:', error);
-                    keywordSelect.innerHTML = '<option value="">Error loading keywords</option>';
-                    keywordInfo.innerHTML = '<span style="color: #dc2626;">Failed to load keywords</span>';
-                    submitBtn.disabled = false;
+            try {
+                const response = await fetch('/subscription_manager/subscription_sys/public/api/subscribe.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
-        }
 
-        // Initialize on page load if shortcode is pre-selected
-        document.addEventListener('DOMContentLoaded', function() {
-            const shortcodeSelect = document.getElementById('shortcode');
-            if (shortcodeSelect.value) {
-                loadKeywords();
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('success', result.message || 'Subscription successful!');
+                    form.classList.add('hidden');
+                } else {
+                    showMessage('error', result.error || 'Subscription failed');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Subscribe';
+                }
+            } catch (error) {
+                showMessage('error', 'An error occurred: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Subscribe';
             }
         });
+
+        function showMessage(type, text) {
+            messageDiv.className = 'message ' + type;
+            messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
+        }
     </script>
 </body>
 </html>
+

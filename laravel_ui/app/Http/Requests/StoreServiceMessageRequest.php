@@ -28,7 +28,6 @@ class StoreServiceMessageRequest extends FormRequest
             'message_type' => ['required', 'in:FPMT,RENEWAL'],
             'status' => ['required', 'in:active,inactive'],
             'message' => ['required', 'string', 'max:260'],
-            'price_code' => ['required', 'string', 'max:50'],
         ];
     }
 

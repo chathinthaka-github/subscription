@@ -1,41 +1,144 @@
 <?php
 
-namespace App;
-
-use PDO;
-use PDOException;
+require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/Logger.php';
 
 class Database
 {
-    private static ?PDO $connection = null;
+    private static $instance = null;
+    private $pdo = null;
 
-    public static function getConnection(): PDO
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct()
     {
-        if (self::$connection === null) {
-            $host = Config::get('DB_HOST', '127.0.0.1');
-            $port = Config::get('DB_PORT', '3306');
-            $database = Config::get('DB_DATABASE');
-            $username = Config::get('DB_USERNAME');
-            $password = Config::get('DB_PASSWORD');
+        try {
+            $config = Config::db();
+            $dsn = sprintf(
+                'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+                $config['host'],
+                $config['port'],
+                $config['database'],
+                $config['charset']
+            );
 
-            if (!$database || !$username) {
-                throw new \RuntimeException('Database configuration is missing');
-            }
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ];
 
-            $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
-
-            try {
-                self::$connection = new PDO($dsn, $username, $password, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]);
-            } catch (PDOException $e) {
-                throw new \RuntimeException("Database connection failed: " . $e->getMessage());
-            }
+            $this->pdo = new PDO($dsn, $config['username'], $config['password'], $options);
+            Logger::info('Database connection established');
+        } catch (PDOException $e) {
+            Logger::error('Database connection failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
+    }
 
-        return self::$connection;
+    /**
+     * Get singleton instance
+     */
+    public static function getInstance()
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
+     * Get PDO connection
+     */
+    public function getConnection()
+    {
+        return $this->pdo;
+    }
+
+    /**
+     * Execute a query and return results
+     */
+    public function query($sql, $params = [])
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            Logger::error('Database query failed', [
+                'sql' => $sql,
+                'params' => $params,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Execute a query and return single row
+     */
+    public function queryOne($sql, $params = [])
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            Logger::error('Database query failed', [
+                'sql' => $sql,
+                'params' => $params,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Execute a query (INSERT, UPDATE, DELETE)
+     */
+    public function execute($sql, $params = [])
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute($params);
+            return [
+                'success' => $result,
+                'rowCount' => $stmt->rowCount(),
+                'lastInsertId' => $this->pdo->lastInsertId()
+            ];
+        } catch (PDOException $e) {
+            Logger::error('Database execute failed', [
+                'sql' => $sql,
+                'params' => $params,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Begin transaction
+     */
+    public function beginTransaction()
+    {
+        return $this->pdo->beginTransaction();
+    }
+
+    /**
+     * Commit transaction
+     */
+    public function commit()
+    {
+        return $this->pdo->commit();
+    }
+
+    /**
+     * Rollback transaction
+     */
+    public function rollback()
+    {
+        return $this->pdo->rollBack();
     }
 }
 

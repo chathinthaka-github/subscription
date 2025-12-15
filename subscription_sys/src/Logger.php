@@ -1,43 +1,72 @@
 <?php
 
-namespace App;
+require_once __DIR__ . '/Config.php';
 
 class Logger
 {
-    private static string $logDir = __DIR__ . '/../logs';
+    private static $logPath = null;
 
-    public static function log(string $level, string $message, array $context = []): void
+    /**
+     * Get log directory path
+     */
+    private static function getLogPath()
     {
-        if (!is_dir(self::$logDir)) {
-            mkdir(self::$logDir, 0755, true);
+        if (self::$logPath === null) {
+            self::$logPath = Config::logPath();
+            if (!is_dir(self::$logPath)) {
+                mkdir(self::$logPath, 0755, true);
+            }
         }
+        return self::$logPath;
+    }
 
+    /**
+     * Write log entry
+     */
+    private static function write($level, $message, $context = [])
+    {
+        $logPath = self::getLogPath();
+        $logFile = $logPath . '/' . date('Y-m-d') . '.log';
+        
         $timestamp = date('Y-m-d H:i:s');
         $contextStr = !empty($context) ? ' ' . json_encode($context) : '';
-        $logMessage = "[{$timestamp}] [{$level}] {$message}{$contextStr}" . PHP_EOL;
-
-        $logFile = self::$logDir . '/' . date('Y-m-d') . '.log';
-        file_put_contents($logFile, $logMessage, FILE_APPEND);
+        $logEntry = "[{$timestamp}] [{$level}] {$message}{$contextStr}" . PHP_EOL;
+        
+        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
     }
 
-    public static function info(string $message, array $context = []): void
+    /**
+     * Log info message
+     */
+    public static function info($message, $context = [])
     {
-        self::log('INFO', $message, $context);
+        self::write('INFO', $message, $context);
     }
 
-    public static function error(string $message, array $context = []): void
+    /**
+     * Log error message
+     */
+    public static function error($message, $context = [])
     {
-        self::log('ERROR', $message, $context);
+        self::write('ERROR', $message, $context);
     }
 
-    public static function warning(string $message, array $context = []): void
+    /**
+     * Log warning message
+     */
+    public static function warning($message, $context = [])
     {
-        self::log('WARNING', $message, $context);
+        self::write('WARNING', $message, $context);
     }
 
-    public static function debug(string $message, array $context = []): void
+    /**
+     * Log debug message
+     */
+    public static function debug($message, $context = [])
     {
-        self::log('DEBUG', $message, $context);
+        if (Config::get('APP_DEBUG', 'false') === 'true') {
+            self::write('DEBUG', $message, $context);
+        }
     }
 }
 

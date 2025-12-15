@@ -23,7 +23,7 @@
             @foreach($permissions as $module => $modulePermissions)
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">{{ ucfirst(str_replace('_', ' ', $module)) }}</h3>
-                <div class="space-y-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     @foreach($modulePermissions as $permission)
                     <label class="flex items-center">
                         <input type="checkbox" name="permissions[]" value="{{ $permission->id }}" {{ in_array($permission->id, old('permissions', $rolePermissions)) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">

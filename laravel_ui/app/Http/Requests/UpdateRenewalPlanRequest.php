@@ -20,7 +20,8 @@ class UpdateRenewalPlanRequest extends StoreRenewalPlanRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $renewalPlanId = $this->route('renewal_plan');
+            $renewalPlan = $this->route('renewal_plan');
+            $renewalPlanId = $renewalPlan instanceof \App\Models\RenewalPlan ? $renewalPlan->id : $renewalPlan;
             
             // Validate keyword exists for the shortcode
             $service = \App\Models\Service::where('shortcode_id', $this->shortcode_id)

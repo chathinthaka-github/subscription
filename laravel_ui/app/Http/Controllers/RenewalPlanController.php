@@ -164,9 +164,9 @@ class RenewalPlanController extends Controller
             $rules['fixed_time'] = $data['fixed_time'];
         }
 
-        if ($data['plan_type'] === 'weekly' || $data['plan_type'] === 'monthly') {
-            $rules['days'] = $data['schedule_rules']['days'] ?? [];
-        }
+        if (($data['plan_type'] === 'weekly' || $data['plan_type'] === 'monthly') && isset($data['schedule_rules'])) {
+    $rules['days'] = $data['schedule_rules']['days'] ?? [];
+}
 
         return $rules;
     }

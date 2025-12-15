@@ -32,8 +32,8 @@ class StoreRenewalPlanRequest extends FormRequest
             'is_fixed_time' => ['boolean'],
             'fixed_time' => ['required_if:is_fixed_time,true', 'date_format:H:i', 'nullable'],
             'start_from' => ['nullable', 'date'],
-            'schedule_rules' => ['required', 'array'],
-            'schedule_rules.days' => ['required_if:plan_type,weekly,monthly', 'array', 'min:1'],
+            'schedule_rules' => ['exclude_if:plan_type,daily', 'array'],
+'schedule_rules.days' => ['required_if:plan_type,weekly,monthly', 'array', 'min:1'],
             'schedule_rules.days.*' => ['integer', 'min:1', 'max:31'],
         ];
     }

@@ -3,110 +3,136 @@
 @section('title', 'Edit Renewal Plan')
 
 @section('content')
-<div class="px-4 sm:px-6 lg:px-8" style="background: #fff;">
-    <h1 class="text-2xl font-semibold" style="color: #000;">Edit Renewal Plan</h1>
+<div class="neo-card p-8 rounded-2xl">
+    <h1 class="text-3xl font-semibold mb-6" style="color: var(--color-neo-text);">Edit Renewal Plan</h1>
 
-    <form method="POST" action="{{ route('renewal-plans.update', $renewalPlan) }}" class="mt-8 space-y-6 max-w-2xl" id="planForm">
+    <!-- Important Constraint Warning -->
+    <div class="neo-card p-4 rounded-xl mb-6" style="background: rgba(251, 191, 36, 0.1); border: 2px solid rgba(251, 191, 36, 0.4);">
+        <div class="flex items-start">
+            <svg class="h-6 w-6 flex-shrink-0 mt-0.5" style="color: var(--color-neo-warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold" style="color: var(--color-neo-warning);">Important: Unique Service Constraint</h3>
+                <p class="mt-1 text-sm" style="color: var(--color-neo-text);">Each service can only have ONE renewal plan. Updating this plan will affect all renewals for this service.</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('renewal-plans.update', $renewalPlan) }}" id="planForm">
         @csrf
         @method('PUT')
 
-        <div>
-            <label for="shortcode_id" class="block text-sm font-medium" style="color: #000;">Shortcode</label>
-            <select name="shortcode_id" id="shortcode_id" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="">Select Shortcode</option>
-                @foreach($shortcodes as $shortcode)
-                    <option value="{{ $shortcode->id }}" {{ old('shortcode_id', $renewalPlan->service->shortcode_id) == $shortcode->id ? 'selected' : '' }}>{{ $shortcode->shortcode }}</option>
-                @endforeach
-            </select>
-            @error('shortcode_id')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
+        <!-- First Row: Shortcode, Keyword, Name -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <div>
+                <label for="shortcode_id" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Shortcode</label>
+                <select name="shortcode_id" id="shortcode_id" required class="neo-input px-4 py-2 w-full" style="color: var(--color-neo-text);">
+                    <option value="">Select Shortcode</option>
+                    @foreach($shortcodes as $shortcode)
+                        <option value="{{ $shortcode->id }}" {{ old('shortcode_id', $renewalPlan->service->shortcode_id) == $shortcode->id ? 'selected' : '' }}>{{ $shortcode->shortcode }}</option>
+                    @endforeach
+                </select>
+                @error('shortcode_id')
+                    <p class="mt-1 text-sm" style="color: var(--color-neo-error);">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label for="keyword" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Keyword</label>
+                <select name="keyword" id="keyword" required class="neo-input px-4 py-2 w-full" style="color: var(--color-neo-text);">
+                    <option value="{{ old('keyword', $renewalPlan->service->keyword) }}" selected>{{ old('keyword', $renewalPlan->service->keyword) }}</option>
+                </select>
+                @error('keyword')
+                    <p class="mt-1 text-sm" style="color: var(--color-neo-error);">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label for="name" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Plan Name</label>
+                <input type="text" name="name" id="name" required value="{{ old('name', $renewalPlan->name) }}" maxlength="100" class="neo-input px-4 py-2 w-full" style="color: var(--color-neo-text);">
+                @error('name')
+                    <p class="mt-1 text-sm" style="color: var(--color-neo-error);">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
-        <div>
-            <label for="keyword" class="block text-sm font-medium" style="color: #000;">Keyword</label>
-            <select name="keyword" id="keyword" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="{{ old('keyword', $renewalPlan->service->keyword) }}" selected>{{ old('keyword', $renewalPlan->service->keyword) }}</option>
-            </select>
-            @error('keyword')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
+        <!-- Second Row: Price, Plan Type, Skip/Fixed Time -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <div>
+                <label for="price_code" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Price</label>
+                <input type="text" name="price_code" id="price_code" required value="{{ old('price_code', $renewalPlan->price_code) }}" maxlength="50" class="neo-input px-4 py-2 w-full" style="color: var(--color-neo-text);">
+                @error('price_code')
+                    <p class="mt-1 text-sm" style="color: var(--color-neo-error);">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label for="plan_type" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Plan Type</label>
+                <select name="plan_type" id="plan_type" required class="neo-input px-4 py-2 w-full" style="color: var(--color-neo-text);">
+                    <option value="daily" {{ old('plan_type', $renewalPlan->plan_type) === 'daily' ? 'selected' : '' }}>Daily</option>
+                    <option value="weekly" {{ old('plan_type', $renewalPlan->plan_type) === 'weekly' ? 'selected' : '' }}>Weekly</option>
+                    <option value="monthly" {{ old('plan_type', $renewalPlan->plan_type) === 'monthly' ? 'selected' : '' }}>Monthly</option>
+                </select>
+                @error('plan_type')
+                    <p class="mt-1 text-sm" style="color: var(--color-neo-error);">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center">
+                    <input type="checkbox" name="skip_subscription_day" id="skip_subscription_day" value="1" {{ old('skip_subscription_day', $renewalPlan->skip_subscription_day) ? 'checked' : '' }} class="h-4 w-4 rounded" style="accent-color: var(--color-neo-accent);">
+                    <label for="skip_subscription_day" class="ml-2 block text-sm" style="color: var(--color-neo-text);">Skip Subscription Day</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_fixed_time" id="is_fixed_time" value="1" {{ old('is_fixed_time', $renewalPlan->is_fixed_time) ? 'checked' : '' }} class="h-4 w-4 rounded" style="accent-color: var(--color-neo-accent);">
+                    <label for="is_fixed_time" class="ml-2 block text-sm" style="color: var(--color-neo-text);">Use Fixed Time</label>
+                </div>
+            </div>
         </div>
 
-        <div>
-            <label for="name" class="block text-sm font-medium" style="color: #000;">Plan Name</label>
-            <input type="text" name="name" id="name" required value="{{ old('name', $renewalPlan->name) }}" maxlength="100" class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-            @error('name')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
+        <!-- Fixed Time Field (conditionally shown) -->
+        <div id="fixed-time" style="display: none;" class="mb-6">
+            <label for="fixed_time_input" class="block text-sm font-medium mb-2" style="color: var(--color-neo-text);">Fixed Time</label>
+            <input type="time" name="fixed_time" id="fixed_time_input" value="{{ old('fixed_time', $renewalPlan->fixed_time ? (is_string($renewalPlan->fixed_time) ? substr($renewalPlan->fixed_time, 0, 5) : $renewalPlan->fixed_time->format('H:i')) : '') }}" class="neo-input px-4 py-2 w-full max-w-xs" style="color: var(--color-neo-text);">
         </div>
 
-        <div>
-            <label for="price_code" class="block text-sm font-medium" style="color: #000;">Price Code</label>
-            <input type="text" name="price_code" id="price_code" required value="{{ old('price_code', $renewalPlan->price_code) }}" maxlength="50" class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-            @error('price_code')
-                <p class="mt-1 text-sm" style="color: #dc2626;">{{ $message }}</p>
-            @enderror
-        </div>
-
-        <div>
-            <label for="plan_type" class="block text-sm font-medium" style="color: #000;">Plan Type</label>
-            <select name="plan_type" id="plan_type" required class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-                <option value="daily" {{ old('plan_type', $renewalPlan->plan_type) === 'daily' ? 'selected' : '' }}>Daily</option>
-                <option value="weekly" {{ old('plan_type', $renewalPlan->plan_type) === 'weekly' ? 'selected' : '' }}>Weekly</option>
-                <option value="monthly" {{ old('plan_type', $renewalPlan->plan_type) === 'monthly' ? 'selected' : '' }}>Monthly</option>
-            </select>
-        </div>
-
-        <div id="weekly-days" style="display: none;">
-            <label class="block text-sm font-medium" style="color: #000;">Days of Week</label>
-            <div class="mt-2 flex gap-4">
+        <!-- Weekly Days Selection (full width) -->
+        <div id="weekly-days" style="display: none;" class="mb-6">
+            <label class="block text-sm font-medium mb-3" style="color: var(--color-neo-text);">Days of Week</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4">
                 @php
                     $selectedDays = old('schedule_rules.days', $renewalPlan->schedule_rules['days'] ?? []);
                 @endphp
                 @foreach(['Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6, 'Sunday' => 7] as $day => $value)
-                <label class="flex items-center">
-                    <input type="checkbox" name="schedule_rules[days][]" value="{{ $value }}" {{ in_array($value, $selectedDays) ? 'checked' : '' }} class="rounded border-black text-indigo-600 focus:ring-indigo-500">
-                    <span class="ml-2 text-sm" style="color: #000;">{{ substr($day, 0, 3) }}</span>
+                <label class="flex items-center neo-card p-3 rounded-lg cursor-pointer hover:shadow-lg transition-shadow">
+                    <input type="checkbox" name="schedule_rules[days][]" value="{{ $value }}" {{ in_array($value, $selectedDays) ? 'checked' : '' }} class="h-4 w-4 rounded" style="accent-color: var(--color-neo-accent);">
+                    <span class="ml-2 text-sm font-medium" style="color: var(--color-neo-text);">{{ $day }}</span>
                 </label>
                 @endforeach
             </div>
         </div>
 
-        <div id="monthly-days" style="display: none;">
-            <label class="block text-sm font-medium" style="color: #000;">Days of Month</label>
-            <select name="schedule_rules[days][]" multiple class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" size="10" style="color: #000; background: #fff;">
+        <!-- Monthly Days Selection (full width) -->
+        <div id="monthly-days" style="display: none;" class="mb-6">
+            <label class="block text-sm font-medium mb-3" style="color: var(--color-neo-text);">Days of Month</label>
+            <div class="grid grid-cols-4 sm:grid-cols-7 md:grid-cols-10 lg:grid-cols-15 gap-2">
                 @php
                     $selectedDays = old('schedule_rules.days', $renewalPlan->schedule_rules['days'] ?? []);
                 @endphp
                 @for($i = 1; $i <= 31; $i++)
-                <option value="{{ $i }}" {{ in_array($i, $selectedDays) ? 'selected' : '' }}>{{ $i }}</option>
+                <label class="flex items-center justify-center neo-card p-2 rounded-lg cursor-pointer hover:shadow-lg transition-shadow">
+                    <input type="checkbox" name="schedule_rules[days][]" value="{{ $i }}" {{ in_array($i, $selectedDays) ? 'checked' : '' }} class="h-4 w-4 rounded" style="accent-color: var(--color-neo-accent);">
+                    <span class="ml-1 text-sm font-medium" style="color: var(--color-neo-text);">{{ $i }}</span>
+                </label>
                 @endfor
-            </select>
-        </div>
-
-        <div>
-            <div class="flex items-center">
-                <input type="checkbox" name="skip_subscription_day" id="skip_subscription_day" value="1" {{ old('skip_subscription_day', $renewalPlan->skip_subscription_day) ? 'checked' : '' }} class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-black rounded">
-                <label for="skip_subscription_day" class="ml-2 block text-sm" style="color: #000;">Skip Subscription Day</label>
             </div>
         </div>
 
-        <div>
-            <div class="flex items-center">
-                <input type="checkbox" name="is_fixed_time" id="is_fixed_time" value="1" {{ old('is_fixed_time', $renewalPlan->is_fixed_time) ? 'checked' : '' }} class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-black rounded">
-                <label for="is_fixed_time" class="ml-2 block text-sm" style="color: #000;">Use Fixed Time</label>
-            </div>
-        </div>
-
-        <div id="fixed-time" style="display: none;">
-            <label for="fixed_time" class="block text-sm font-medium" style="color: #000;">Fixed Time</label>
-            <input type="time" name="fixed_time" id="fixed_time" value="{{ old('fixed_time', $renewalPlan->fixed_time ? (is_string($renewalPlan->fixed_time) ? substr($renewalPlan->fixed_time, 0, 5) : $renewalPlan->fixed_time->format('H:i')) : '') }}" class="mt-1 block w-full rounded-md border border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" style="color: #000; background: #fff;">
-        </div>
-
-        <div class="flex gap-4">
-            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">Update</button>
-            <a href="{{ route('renewal-plans.index') }}" class="inline-flex items-center px-4 py-2 border border-black text-sm font-medium rounded-md" style="color: #000; background: #fff;">Cancel</a>
+        <!-- Action Buttons -->
+        <div class="flex gap-4 pt-4">
+            <button type="submit" class="neo-button-primary px-6 py-3 text-sm font-medium">Update Renewal Plan</button>
+            <a href="{{ route('renewal-plans.index') }}" class="neo-button px-6 py-3 text-sm font-medium" style="color: var(--color-neo-text);">Cancel</a>
         </div>
     </form>
 </div>
@@ -169,4 +195,3 @@
     document.getElementById('is_fixed_time').dispatchEvent(new Event('change'));
 </script>
 @endsection
-

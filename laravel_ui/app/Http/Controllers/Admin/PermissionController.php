@@ -67,7 +67,7 @@ class PermissionController extends Controller
 
         $role->syncPermissions($permissionIds);
 
-        return redirect()->route('admin.permissions.show', $role)
+        return redirect()->route('admin.permissions.index')
             ->with('success', 'Permissions updated successfully for role: ' . $role->name);
     }
 }

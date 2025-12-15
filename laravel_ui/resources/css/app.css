@@ -273,3 +273,45 @@
         outline-offset: 2px;
     }
 }
+
+/* Global Button and Input Styling */
+button, input[type="button"], input[type="submit"], input[type="reset"], a[role="button"] {
+    border: 1px solid #000 !important;
+    border-radius: 25px !important;
+    padding: 5px !important;
+}
+
+input[type="text"], 
+input[type="email"], 
+input[type="password"], 
+input[type="number"], 
+input[type="tel"], 
+input[type="url"], 
+input[type="search"], 
+input[type="time"], 
+input[type="date"], 
+input[type="datetime-local"],
+select, 
+textarea {
+    padding: 5px !important;
+}
+
+/* Override for neo-button classes to maintain their styling but add required border-radius and black border */
+.neo-button, .neo-button-primary, .neo-button-success, .neo-button-danger {
+    border: 1px solid #000 !important;
+    border-radius: 25px !important;
+    padding: 5px 1rem !important;
+}
+
+/* Ensure hover and active states also maintain black border */
+.neo-button:hover, .neo-button:active,
+.neo-button-primary:hover, .neo-button-primary:active,
+.neo-button-success:hover, .neo-button-success:active,
+.neo-button-danger:hover, .neo-button-danger:active {
+    border: 1px solid #000 !important;
+}
+
+/* Ensure all buttons maintain black border */
+button, input[type="button"], input[type="submit"], input[type="reset"], a[role="button"] {
+    border: 1px solid #000 !important;
+}

@@ -1,118 +1,121 @@
 <?php
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+header('Content-Type: application/json');
 
-use App\Config;
-use App\Database;
-use App\Logger;
-use App\RabbitMQ;
+require_once __DIR__ . '/../../src/Config.php';
+require_once __DIR__ . '/../../src/Database.php';
+require_once __DIR__ . '/../../src/RabbitMQ.php';
+require_once __DIR__ . '/../../src/Logger.php';
 
 // Load configuration
 Config::load();
 
-header('Content-Type: application/json');
-
+// Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
     exit;
 }
 
 try {
+    // Get JSON input
     $input = json_decode(file_get_contents('php://input'), true);
-
-    if (!$input) {
-        throw new \InvalidArgumentException('Invalid JSON input');
+    
+    if ($input === null) {
+        throw new Exception('Invalid JSON input');
     }
-
-    $msisdn = $input['msisdn'] ?? null;
-    $serviceId = $input['service_id'] ?? null;
-    $renewalPlanId = $input['renewal_plan_id'] ?? null;
-    $shortcode = $input['shortcode'] ?? null;
-    $keyword = $input['keyword'] ?? null;
 
     // Validate required fields
-    if (!$msisdn) {
-        throw new \InvalidArgumentException('msisdn is required');
+    if (empty($input['msisdn'])) {
+        throw new Exception('MSISDN is required');
     }
 
-    $db = Database::getConnection();
+    // Validate MSISDN format (basic validation)
+    $msisdn = preg_replace('/[^0-9+]/', '', $input['msisdn']);
+    if (empty($msisdn) || strlen($msisdn) < 10) {
+        throw new Exception('Invalid MSISDN format');
+    }
 
-    // If shortcode and keyword provided, find service
-    if ($shortcode && $keyword && !$serviceId) {
-        $stmt = $db->prepare("
-            SELECT s.id
-            FROM services s
-            INNER JOIN shortcodes sc ON s.shortcode_id = sc.id
-            WHERE sc.shortcode = ? AND s.keyword = ? AND s.status = 'active'
-        ");
-        $stmt->execute([$shortcode, $keyword]);
-        $service = $stmt->fetch();
+    $db = Database::getInstance();
 
+    // Determine service_id
+    $serviceId = null;
+    
+    if (!empty($input['service_id'])) {
+        $serviceId = (int)$input['service_id'];
+    } elseif (!empty($input['shortcode']) && !empty($input['keyword'])) {
+        // Look up service by shortcode and keyword
+        $service = $db->queryOne(
+            "SELECT s.id FROM services s 
+             INNER JOIN shortcodes sc ON s.shortcode_id = sc.id 
+             WHERE sc.shortcode = ? AND s.keyword = ? AND s.status = 'active' 
+             LIMIT 1",
+            [$input['shortcode'], $input['keyword']]
+        );
+        
         if (!$service) {
-            throw new \RuntimeException('Service not found for shortcode: ' . $shortcode . ' and keyword: ' . $keyword);
+            throw new Exception('Service not found for given shortcode and keyword');
         }
+        $serviceId = (int)$service['id'];
+    } else {
+        throw new Exception('Either service_id or shortcode+keyword is required');
+    }
 
-        $serviceId = $service['id'];
+    // Check if service exists and is active
+    $service = $db->queryOne(
+        "SELECT id, fpmt_enabled FROM services WHERE id = ? AND status = 'active' LIMIT 1",
+        [$serviceId]
+    );
 
-        // If renewal_plan_id not provided, get the first active plan for this service
-        if (!$renewalPlanId) {
-            $stmt = $db->prepare("
-                SELECT id FROM renewal_plans WHERE service_id = ? ORDER BY id ASC LIMIT 1
-            ");
-            $stmt->execute([$serviceId]);
-            $plan = $stmt->fetch();
+    if (!$service) {
+        throw new Exception('Service not found or inactive');
+    }
 
-            if (!$plan) {
-                throw new \RuntimeException('No renewal plan found for this service');
-            }
+    // Check for existing active subscription
+    $existing = $db->queryOne(
+        "SELECT id FROM subscriptions WHERE msisdn = ? AND service_id = ? AND status = 'active' LIMIT 1",
+        [$msisdn, $serviceId]
+    );
 
-            $renewalPlanId = $plan['id'];
+    if ($existing) {
+        throw new Exception('Active subscription already exists for this MSISDN and service');
+    }
+
+    // Get renewal_plan_id if provided
+    $renewalPlanId = !empty($input['renewal_plan_id']) ? (int)$input['renewal_plan_id'] : null;
+
+    if ($renewalPlanId) {
+        $renewalPlan = $db->queryOne(
+            "SELECT id FROM renewal_plans WHERE id = ? LIMIT 1",
+            [$renewalPlanId]
+        );
+        if (!$renewalPlan) {
+            throw new Exception('Invalid renewal_plan_id');
         }
     }
 
-    if (!$serviceId) {
-        throw new \InvalidArgumentException('service_id is required (or provide shortcode and keyword)');
-    }
-
-    if (!$renewalPlanId) {
-        throw new \InvalidArgumentException('renewal_plan_id is required');
-    }
-
-    // Validate service and renewal plan exist and are linked
-    $stmt = $db->prepare("
-        SELECT s.id, s.status, rp.id as plan_id
-        FROM services s
-        INNER JOIN renewal_plans rp ON rp.service_id = s.id
-        WHERE s.id = ? AND rp.id = ? AND s.status = 'active'
-    ");
-    $stmt->execute([$serviceId, $renewalPlanId]);
-    $validation = $stmt->fetch();
-
-    if (!$validation) {
-        throw new \RuntimeException('Invalid service or renewal plan, or they are not linked');
-    }
-
-    // Queue subscription
-    $queueData = [
+    // Prepare subscription data
+    $subscriptionData = [
         'msisdn' => $msisdn,
         'service_id' => $serviceId,
         'renewal_plan_id' => $renewalPlanId,
+        'subscribed_at' => date('Y-m-d H:i:s'),
     ];
 
-    RabbitMQ::publish(Config::get('QUEUE_SUBSCRIPTION', 'subscription_queue'), $queueData);
+    // Enqueue to RabbitMQ
+    $queues = Config::queues();
+    RabbitMQ::publish($queues['subscription'], $subscriptionData);
 
-    Logger::info("Subscription queued", $queueData);
+    Logger::info('Subscription request enqueued', $subscriptionData);
 
-    http_response_code(200);
     echo json_encode([
         'success' => true,
-        'message' => 'Subscription request queued successfully',
-        'data' => $queueData
+        'message' => 'Subscription request received and queued',
+        'data' => $subscriptionData
     ]);
-} catch (\Exception $e) {
-    Logger::error("Subscription API error", ['error' => $e->getMessage()]);
-    
+
+} catch (Exception $e) {
+    Logger::error('Subscription API error', ['error' => $e->getMessage()]);
     http_response_code(400);
     echo json_encode([
         'success' => false,

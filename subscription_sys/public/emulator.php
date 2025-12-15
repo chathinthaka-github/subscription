@@ -1,396 +1,243 @@
-<?php
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use App\Config;
-use App\Database;
-
-Config::load();
-
-$message = '';
-$messageType = '';
-$mts = [];
-
-// Fetch all MT records
-try {
-    $db = Database::getConnection();
-    $stmt = $db->query("
-        SELECT
-            mt.id,
-            mt.mt_ref_id,
-            mt.msisdn,
-            mt.message_type,
-            mt.status,
-            mt.dn_status,
-            mt.message,
-            mt.price_code,
-            mt.created_at,
-            s.keyword,
-            sc.shortcode
-        FROM mt
-        LEFT JOIN services s ON mt.service_id = s.id
-        LEFT JOIN shortcodes sc ON s.shortcode_id = sc.id
-        ORDER BY mt.created_at DESC
-        LIMIT 100
-    ");
-    $mts = $stmt->fetchAll();
-} catch (\Exception $e) {
-    $message = 'Error loading MT records: ' . $e->getMessage();
-    $messageType = 'error';
-}
-
-// Handle DN trigger
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mt_ref_id'])) {
-    $mtRefId = $_POST['mt_ref_id'];
-    $dnStatus = $_POST['dn_status'] ?? 'success';
-    $details = $_POST['details'] ?? 'Delivery confirmed from emulator';
-
-    // Call the DN API
-    $apiUrl = 'http://localhost/subscription_sys/public/api/dn.php';
-
-    $data = [
-        'mt_ref_id' => $mtRefId,
-        'status' => $dnStatus,
-        'details' => $details
-    ];
-
-    $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200) {
-        $result = json_decode($response, true);
-        $message = 'DN triggered successfully for ' . htmlspecialchars($mtRefId);
-        $messageType = 'success';
-    } else {
-        $result = json_decode($response, true);
-        $message = $result['error'] ?? 'Failed to trigger DN';
-        $messageType = 'error';
-    }
-
-    // Refresh MT list
-    header('Location: emulator.php?msg=' . urlencode($message) . '&type=' . $messageType);
-    exit;
-}
-
-// Handle URL parameters for messages
-if (isset($_GET['msg'])) {
-    $message = $_GET['msg'];
-    $messageType = $_GET['type'] ?? 'success';
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DN Emulator - Subscription Manager</title>
+    <title>DN Emulator</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            --color-neo-base: #E0E0E0;
+            --color-neo-light: #F0F0F0;
+            --color-neo-text: #2D2D2D;
+            --color-neo-text-light: #5A5A5A;
+            --color-neo-accent: #4F46E5;
+            --color-neo-accent-hover: #4338CA;
+            --color-neo-success: #059669;
+            --color-neo-error: #DC2626;
         }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            min-height: 100vh;
+            font-family: var(--font-sans);
+            background: var(--color-neo-base);
             padding: 20px;
         }
-
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             max-width: 1200px;
-            width: 100%;
             margin: 0 auto;
-            padding: 40px;
+            background: var(--color-neo-light);
+            padding: 30px;
+            border-radius: 1.25rem;
+            box-shadow: 6px 6px 12px rgba(163, 163, 163, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.9);
+            border: 2px solid #C0C0C0;
         }
-
         h1 {
-            color: #333;
             margin-bottom: 30px;
-            text-align: center;
-            font-size: 28px;
-        }
-
-        .message {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
-        }
-
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .nav-links a {
-            color: #f5576c;
-            text-decoration: none;
+            color: var(--color-neo-text);
+            font-size: 2rem;
             font-weight: 600;
-            margin: 0 10px;
         }
-
-        .nav-links a:hover {
-            text-decoration: underline;
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
         }
-
-        thead {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
         th, td {
             padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #ddd;
         }
-
         th {
-            font-weight: 600;
-            font-size: 14px;
-            text-transform: uppercase;
+            background: var(--color-neo-base);
         }
-
-        tbody tr {
-            border-bottom: 1px solid #f0f0f0;
-            transition: background 0.2s;
-        }
-
-        tbody tr:hover {
-            background: #f9f9f9;
-        }
-
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        .status-queued {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-sent {
-            background: #cfe2ff;
-            color: #084298;
-        }
-
-        .status-delivered {
-            background: #d1e7dd;
-            color: #0f5132;
-        }
-
-        .status-failed {
-            background: #f8d7da;
-            color: #842029;
-        }
-
-        .dn-btn {
-            padding: 6px 16px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+        .btn {
+            padding: 8px 16px;
+            border-radius: 0.75rem;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .dn-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.3);
-        }
-
-        .dn-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .dn-form {
-            display: inline-block;
-        }
-
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-            font-size: 16px;
-        }
-
-        .info-box {
-            background: #e7f3ff;
-            border: 2px solid #b3d7ff;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .info-box h3 {
-            color: #004085;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-
-        .info-box p {
-            color: #004085;
             font-size: 14px;
-            margin: 5px 0;
-        }
-
-        .message-preview {
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 13px;
-            color: #666;
-        }
-
-        .refresh-btn {
-            float: right;
-            padding: 10px 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
             font-weight: 600;
+            transition: all 0.2s ease;
             text-decoration: none;
             display: inline-block;
+            border: 2px solid #8B8B8B;
+            background: var(--color-neo-light);
+            color: var(--color-neo-text);
+            box-shadow: 4px 4px 8px rgba(163, 163, 163, 0.3), -4px -4px 8px rgba(255, 255, 255, 0.8);
         }
-
-        .refresh-btn:hover {
-            background: #218838;
+        .btn:hover {
+            background: var(--color-neo-base);
         }
+        .btn-success {
+            background: var(--color-neo-success);
+            color: white;
+            border-color: #065F46;
+        }
+        .btn-success:hover {
+            background: #047857;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--color-neo-light);
+            padding: 30px;
+            border-radius: 1.25rem;
+            box-shadow: 6px 6px 12px rgba(163, 163, 163, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.9);
+            border: 2px solid #C0C0C0;
+            max-width: 500px;
+            width: 90%;
+        }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--color-neo-text-light); }
+        select, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 0.75rem;
+            font-size: 14px;
+            background: var(--color-neo-light);
+            color: var(--color-neo-text);
+            box-shadow: inset 4px 4px 8px rgba(163, 163, 163, 0.2), inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+            border: 2px solid #A0A0A0;
+        }
+        textarea { min-height: 100px; resize: vertical; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .status-badge { padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: bold; }
+        .status-queued, .status-pending { background: #ffc107; color: #000; }
+        .status-success { background: #28a745; color: white; }
+        .status-fail { background: #dc3545; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-links">
-            <a href="subscribe-page.php">Subscribe</a>
-            <a href="emulator.php">Emulator</a>
-        </div>
-
-        <h1>🎮 DN Emulator</h1>
-
-        <div class="info-box">
-            <h3>ℹ️ How to Use</h3>
-            <p>This emulator allows you to manually trigger Delivery Notifications (DN) for MT messages.</p>
-            <p>Click the "Trigger DN" button next to any MT record to simulate a delivery notification.</p>
-        </div>
-
-        <?php if ($message): ?>
-            <div class="message <?php echo $messageType; ?>">
-                <?php echo htmlspecialchars($message); ?>
-            </div>
-        <?php endif; ?>
-
-        <a href="emulator.php" class="refresh-btn">🔄 Refresh</a>
-        <div style="clear: both;"></div>
-
-        <?php if (empty($mts)): ?>
-            <div class="no-data">
-                <p>📭 No MT records found</p>
-                <p style="margin-top: 10px;">Subscribe to a service first to see MT records here.</p>
-            </div>
-        <?php else: ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>MT Ref ID</th>
-                        <th>MSISDN</th>
-                        <th>Service</th>
-                        <th>Type</th>
-                        <th>Message</th>
-                        <th>Price Code</th>
-                        <th>Status</th>
-                        <th>DN Status</th>
-                        <th>Created</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($mts as $mt): ?>
-                        <tr>
-                            <td><strong><?php echo htmlspecialchars($mt['mt_ref_id']); ?></strong></td>
-                            <td><?php echo htmlspecialchars($mt['msisdn']); ?></td>
-                            <td><?php echo htmlspecialchars(($mt['shortcode'] ?? '') . ' - ' . ($mt['keyword'] ?? 'N/A')); ?></td>
-                            <td><?php echo htmlspecialchars($mt['message_type']); ?></td>
-                            <td>
-                                <div class="message-preview" title="<?php echo htmlspecialchars($mt['message']); ?>">
-                                    <?php echo htmlspecialchars($mt['message']); ?>
-                                </div>
-                            </td>
-                            <td><?php echo htmlspecialchars($mt['price_code'] ?? 'N/A'); ?></td>
-                            <td>
-                                <span class="status-badge status-<?php echo strtolower($mt['status']); ?>">
-                                    <?php echo strtoupper($mt['status']); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if ($mt['dn_status']): ?>
-                                    <span class="status-badge status-<?php echo strtolower($mt['dn_status']); ?>">
-                                        <?php echo strtoupper($mt['dn_status']); ?>
-                                    </span>
-                                <?php else: ?>
-                                    <span style="color: #999;">Pending</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo date('Y-m-d H:i:s', strtotime($mt['created_at'])); ?></td>
-                            <td>
-                                <?php if ($mt['status'] === 'sent' && empty($mt['dn_status'])): ?>
-                                    <form method="POST" class="dn-form" onsubmit="return confirm('Trigger DN for <?php echo htmlspecialchars($mt['mt_ref_id']); ?>?');">
-                                        <input type="hidden" name="mt_ref_id" value="<?php echo htmlspecialchars($mt['mt_ref_id']); ?>">
-                                        <input type="hidden" name="dn_status" value="success">
-                                        <input type="hidden" name="details" value="Delivery confirmed from emulator">
-                                        <button type="submit" class="dn-btn">Trigger DN</button>
-                                    </form>
-                                <?php else: ?>
-                                    <button class="dn-btn" disabled>
-                                        <?php echo $mt['dn_status'] ? 'DN Sent' : 'Not Ready'; ?>
-                                    </button>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
+        <h1>DN Emulator - MT Records</h1>
+        <table id="mtTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>MT Ref ID</th>
+                    <th>MSISDN</th>
+                    <th>Message Type</th>
+                    <th>Status</th>
+                    <th>DN Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mtTableBody"></tbody>
+        </table>
     </div>
+
+    <div id="dnModal" class="modal">
+        <div class="modal-content">
+            <h2>Send Delivery Notification</h2>
+            <div id="modalMessage" style="display: none; padding: 10px; margin-bottom: 15px; border-radius: 5px;"></div>
+            <form id="dnForm">
+                <input type="hidden" id="modalMtRefId">
+                <div class="form-group">
+                    <label for="dnStatus">DN Status</label>
+                    <select id="dnStatus" required>
+                        <option value="success">Success</option>
+                        <option value="fail">Fail</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dnDetails">DN Details</label>
+                    <textarea id="dnDetails" placeholder="Enter delivery notification details"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Send DN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let mtRecords = [];
+
+        async function loadMTRecords() {
+            try {
+                const response = await fetch('/subscription_manager/subscription_sys/public/api/get-mt-records.php');
+                const result = await response.json();
+                if (result.success) {
+                    mtRecords = result.data;
+                    renderTable();
+                } else {
+                    document.getElementById('mtTableBody').innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px;">Error: ${result.error}</td></tr>`;
+                }
+            } catch (error) {
+                document.getElementById('mtTableBody').innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px;">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('mtTableBody');
+            if (mtRecords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No MT records found</td></tr>';
+                return;
+            }
+            tbody.innerHTML = mtRecords.map(mt => `
+                <tr>
+                    <td>${mt.id}</td>
+                    <td>${mt.mt_ref_id}</td>
+                    <td>${mt.msisdn}</td>
+                    <td>${mt.message_type}</td>
+                    <td><span class="status-badge status-${mt.status.toLowerCase()}">${mt.status}</span></td>
+                    <td><span class="status-badge status-${mt.dn_status.toLowerCase()}">${mt.dn_status}</span></td>
+                    <td><button class="btn" onclick="openModal('${mt.mt_ref_id}')">Send DN</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function openModal(mtRefId) {
+            document.getElementById('modalMtRefId').value = mtRefId;
+            document.getElementById('dnModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('dnModal').style.display = 'none';
+            document.getElementById('dnForm').reset();
+        }
+
+        document.getElementById('dnForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const mtRefId = document.getElementById('modalMtRefId').value;
+            const status = document.getElementById('dnStatus').value;
+            const details = document.getElementById('dnDetails').value;
+            try {
+                const response = await fetch('/subscription_manager/subscription_sys/public/api/dn.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mt_ref_id: mtRefId, status, details })
+                });
+                const result = await response.json();
+                const modalMsg = document.getElementById('modalMessage');
+                modalMsg.style.display = 'block';
+                modalMsg.style.background = result.success ? '#d4edda' : '#f8d7da';
+                modalMsg.style.color = result.success ? '#155724' : '#721c24';
+                modalMsg.textContent = result.message || (result.success ? 'DN sent successfully!' : 'Failed to send DN');
+                if(result.success) setTimeout(() => { closeModal(); loadMTRecords(); }, 1500);
+            } catch (error) {
+                // ... (error handling)
+            }
+        });
+
+        window.onclick = e => { if (e.target == document.getElementById('dnModal')) closeModal(); };
+
+        loadMTRecords();
+        setInterval(loadMTRecords, 10000);
+    </script>
 </body>
 </html>
+

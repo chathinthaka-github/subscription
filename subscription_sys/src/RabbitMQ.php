@@ -1,70 +1,176 @@
 <?php
 
-namespace App;
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
-use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Channel\AMQPChannel;
+
+require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/Logger.php';
 
 class RabbitMQ
 {
-    private static ?AMQPStreamConnection $connection = null;
-    private static array $channels = [];
+    private static $connection = null;
+    private static $channel = null;
+    private static $config = null;
 
-    public static function getConnection(): AMQPStreamConnection
+    /**
+     * Get connection
+     */
+    private static function getConnection()
     {
-        if (self::$connection === null) {
-            $host = Config::get('RABBITMQ_HOST', '127.0.0.1');
-            $port = (int)Config::get('RABBITMQ_PORT', '5672');
-            $user = Config::get('RABBITMQ_USER', 'guest');
-            $pass = Config::get('RABBITMQ_PASS', 'guest');
-            $vhost = Config::get('RABBITMQ_VHOST', '/');
-
+        if (self::$connection === null || !self::$connection->isConnected()) {
             try {
-                self::$connection = new AMQPStreamConnection($host, $port, $user, $pass, $vhost);
-            } catch (\Exception $e) {
-                throw new \RuntimeException("RabbitMQ connection failed: " . $e->getMessage());
+                $config = Config::rabbitmq();
+                self::$connection = new AMQPStreamConnection(
+                    $config['host'],
+                    $config['port'],
+                    $config['user'],
+                    $config['password'],
+                    $config['vhost']
+                );
+                Logger::info('RabbitMQ connection established');
+            } catch (Exception $e) {
+                Logger::error('RabbitMQ connection failed', ['error' => $e->getMessage()]);
+                throw $e;
             }
         }
-
         return self::$connection;
     }
 
-    public static function getChannel(): AMQPChannel
+    /**
+     * Get channel
+     */
+    private static function getChannel()
     {
-        $connection = self::getConnection();
-        $channelId = spl_object_id($connection);
-        
-        if (!isset(self::$channels[$channelId])) {
-            self::$channels[$channelId] = $connection->channel();
+        if (self::$channel === null || !self::$connection->isConnected()) {
+            self::$channel = self::getConnection()->channel();
         }
-
-        return self::$channels[$channelId];
+        return self::$channel;
     }
 
-    public static function publish(string $queue, array $data): void
+    /**
+     * Declare queue if not exists
+     */
+    private static function declareQueue($queueName)
     {
         $channel = self::getChannel();
-        $channel->queue_declare($queue, false, true, false, false);
-
-        $message = new AMQPMessage(
-            json_encode($data),
-            ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]
+        $channel->queue_declare(
+            $queueName,
+            false,  // passive
+            true,   // durable
+            false,  // exclusive
+            false   // auto_delete
         );
-
-        $channel->basic_publish($message, '', $queue);
     }
 
-    public static function close(): void
+    /**
+     * Publish message to queue
+     */
+    public static function publish($queueName, $message, $persistent = true)
     {
-        foreach (self::$channels as $channel) {
-            $channel->close();
-        }
-        self::$channels = [];
+        try {
+            self::declareQueue($queueName);
+            $channel = self::getChannel();
 
-        if (self::$connection !== null) {
-            self::$connection->close();
-            self::$connection = null;
+            $messageBody = is_array($message) ? json_encode($message) : $message;
+            $properties = [
+                'delivery_mode' => $persistent ? AMQPMessage::DELIVERY_MODE_PERSISTENT : AMQPMessage::DELIVERY_MODE_NON_PERSISTENT
+            ];
+
+            $msg = new AMQPMessage($messageBody, $properties);
+            $channel->basic_publish($msg, '', $queueName);
+
+            Logger::info('Message published to queue', ['queue' => $queueName, 'message' => $messageBody]);
+            return true;
+        } catch (Exception $e) {
+            Logger::error('Failed to publish message', [
+                'queue' => $queueName,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Consume messages from queue
+     */
+    public static function consume($queueName, $callback, $autoAck = false)
+    {
+        try {
+            self::declareQueue($queueName);
+            $channel = self::getChannel();
+
+            $channel->basic_qos(null, 1, null); // Process one message at a time
+
+            $channel->basic_consume(
+                $queueName,
+                '',      // consumer_tag
+                false,   // no_local
+                $autoAck, // no_ack
+                false,   // exclusive
+                false,   // no_wait
+                function ($msg) use ($callback, $channel, $autoAck) {
+                    try {
+                        $body = json_decode($msg->body, true);
+                        if ($body === null && json_last_error() !== JSON_ERROR_NONE) {
+                            $body = $msg->body; // Fallback to raw string
+                        }
+
+                        $result = call_user_func($callback, $body, $msg);
+
+                        if (!$autoAck) {
+                            if ($result !== false) {
+                                $msg->ack();
+                            } else {
+                                $msg->nack(false, true); // Requeue on failure
+                            }
+                        }
+                    } catch (Exception $e) {
+                        Logger::error('Error processing message', [
+                            'queue' => $queueName,
+                            'error' => $e->getMessage(),
+                            'body' => $msg->body
+                        ]);
+                        if (!$autoAck) {
+                            $msg->nack(false, true); // Requeue on exception
+                        }
+                    }
+                }
+            );
+
+            Logger::info('Started consuming queue', ['queue' => $queueName]);
+
+            while ($channel->is_consuming()) {
+                $channel->wait();
+            }
+        } catch (Exception $e) {
+            Logger::error('Failed to consume from queue', [
+                'queue' => $queueName,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Close connection
+     */
+    public static function close()
+    {
+        try {
+            if (self::$channel !== null) {
+                self::$channel->close();
+                self::$channel = null;
+            }
+            if (self::$connection !== null) {
+                self::$connection->close();
+                self::$connection = null;
+            }
+            Logger::info('RabbitMQ connection closed');
+        } catch (Exception $e) {
+            Logger::error('Error closing RabbitMQ connection', ['error' => $e->getMessage()]);
         }
     }
 }

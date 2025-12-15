@@ -1,0 +1,1 @@
+{"version":1,"defects":[],"times":{"RenewalCalculationTest::test_calculate_next_renewal_for_daily_plan":0.002,"RenewalCalculationTest::test_calculate_next_renewal_for_weekly_plan":0,"RenewalCalculationTest::test_calculate_next_renewal_for_monthly_plan":0}}

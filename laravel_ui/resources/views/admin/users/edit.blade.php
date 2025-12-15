@@ -31,11 +31,6 @@
         </div>
 
         <div>
-            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
-            <input type="password" name="password_confirmation" id="password_confirmation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-        </div>
-
-        <div>
             <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
             <select name="status" id="status" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                 <option value="active" {{ old('status', $user->status) === 'active' ? 'selected' : '' }}>Active</option>

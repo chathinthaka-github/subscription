@@ -11,6 +11,15 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceMessageController;
 use App\Http\Controllers\ShortcodeController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+
+// Root route - redirect based on authentication status
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('login');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');

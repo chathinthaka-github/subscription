@@ -28,7 +28,6 @@ class UpdateServiceMessageRequest extends FormRequest
             'message_type' => ['required', 'in:FPMT,RENEWAL'],
             'status' => ['required', 'in:active,inactive'],
             'message' => ['required', 'string', 'max:260'],
-            'price_code' => ['required', 'string', 'max:50'],
         ];
     }
 
@@ -38,7 +37,8 @@ class UpdateServiceMessageRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $serviceMessageId = $this->route('service_message');
+            $serviceMessage = $this->route('service_message');
+            $serviceMessageId = $serviceMessage instanceof \App\Models\ServiceMessage ? $serviceMessage->id : $serviceMessage;
             
             // Validate keyword exists for the shortcode
             $service = \App\Models\Service::where('shortcode_id', $this->shortcode_id)
